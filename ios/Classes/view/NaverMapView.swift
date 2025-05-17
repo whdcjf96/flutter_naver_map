@@ -22,13 +22,13 @@ internal class NaverMapView: NSObject, FlutterPlatformView {
         self.naverMap = NMFNaverMapView(frame: frame)
         super.init()
         
-        // 1) 초기 옵션 적용
+        // 초기 옵션 적용
         options.updateWithNaverMapView(naverMap: naverMap, isFirst: true)
         
-        // 2) 채널 핸들러 등록
+        // Dart → Native 채널 핸들러 등록
         channel.setMethodCallHandler(handleMethodCall(_:result:))
         
-        // 3) 터치/심볼 이벤트 처리 등록
+        // 터치/심볼 이벤트 처리
         eventDelegate = NaverMapViewEventDelegate(
             sender: NaverMapController(
                 naverMap: naverMap,
@@ -39,7 +39,7 @@ internal class NaverMapView: NSObject, FlutterPlatformView {
         )
         eventDelegate.registerDelegates(mapView: naverMap.mapView)
         
-        // 4) 네이버 로고 숨기기
+        // 네이버 로고 숨기기
         deactivateLogo()
     }
 
@@ -54,7 +54,6 @@ internal class NaverMapView: NSObject, FlutterPlatformView {
         }
     }
 
-    // Dart → Native 호출을 처리
     private func handleMethodCall(
         _ call: FlutterMethodCall,
         result: @escaping FlutterResult
@@ -74,7 +73,7 @@ internal class NaverMapView: NSObject, FlutterPlatformView {
                 return
             }
 
-            // iOS에서는 poi 레이어가 없어서 traffic으로 매핑하거나, 필요 없는 경우 제외하세요.
+            // iOS 네이티브 레이어 그룹 매핑
             switch key {
             case "traffic":
                 naverMap.mapView.setLayerGroup(NMF_LAYER_GROUP_TRAFFIC, isEnabled: enabled)
@@ -83,7 +82,7 @@ internal class NaverMapView: NSObject, FlutterPlatformView {
             case "building":
                 naverMap.mapView.setLayerGroup(NMF_LAYER_GROUP_BUILDING, isEnabled: enabled)
             default:
-                // 정의되지 않은 키는 구현되지 않음으로 응답
+                // POI 레이어 토글은 iOS SDK에 지원되지 않습니다.
                 result(FlutterMethodNotImplemented)
                 return
             }
