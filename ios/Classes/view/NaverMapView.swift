@@ -8,88 +8,84 @@ import UIKit
 import NMapsMap
 
 internal class NaverMapView: NSObject, FlutterPlatformView {
-    // 1) Dart ↔ Native 통신 채널 저장
+    // Dart ↔ Native 통신 채널
     private let channel: FlutterMethodChannel
-    // 기존 프로퍼티들
+
+    // 지도 뷰와 옵션, 컨트롤러
     private let naverMap: NMFNaverMapView!
-    private let naverMapViewOptions: NaverMapViewOptions
-    private let naverMapControlSender: NaverMapControlSender
+    private let options: NaverMapViewOptions
+    private let mapController: NaverMapController
     private var eventDelegate: NaverMapViewEventDelegate!
 
-    // 2) init 시 channel을 전달받아 저장
+    // 생성자: 채널을 먼저 저장하고 나머지 초기화
     init(frame: CGRect,
          options: NaverMapViewOptions,
          channel: FlutterMethodChannel,
          overlayController: OverlayController) {
-        // 채널 먼저 저장
         self.channel = channel
-
-        // 나머지 기존 초기화
-        naverMap = NMFNaverMapView(frame: frame)
-        naverMapViewOptions = options
-        naverMapControlSender = NaverMapController(
+        self.naverMap = NMFNaverMapView(frame: frame)
+        self.options = options
+        self.mapController = NaverMapController(
             naverMap: naverMap,
             channel: channel,
             overlayController: overlayController
         )
-
         super.init()
 
-        // 3) 최초 옵션 적용
-        naverMapViewOptions.updateWithNaverMapView(
-            naverMap: naverMap,
-            isFirst: true
-        )
+        // 1) 최초 옵션 적용
+        options.updateWithNaverMapView(naverMap: naverMap, isFirst: true)
 
-        // 4) Dart → Native 호출을 받을 handler 등록
+        // 2) Dart → Native 호출 처리 핸들러 등록
         channel.setMethodCallHandler(handleMethodCall(_:result:))
 
-        // 5) 나머지 onMapReady 로직
+        // 3) 맵 준비 완료 로직
         onMapReady()
     }
 
+    // FlutterPlatformView 프로토콜
     func view() -> UIView {
         return naverMap
     }
 
     deinit {
         // 채널 정리
-        (naverMapControlSender as! NaverMapController).removeChannel()
+        mapController.removeChannel()
     }
 
-    // 지도 준비 완료 시
+    // 맵 준비가 끝났을 때
     private func onMapReady() {
-        setMapTapListener()
-        naverMapControlSender.onMapReady()
-        deactivateLogo()
+        setupTapListener()
+        mapController.onMapReady()
+        hideLogo()
     }
 
     // 네이버 로고 숨기기
-    private func deactivateLogo() {
+    private func hideLogo() {
         let subviews = naverMap.mapView.subviews
         if subviews.count > 1 {
             subviews[1].isHidden = true
         }
     }
 
-    // 심볼 터치 리스너 등록
-    private func setMapTapListener() {
+    // 심볼(마커) 터치 이벤트 리스너 연결
+    private func setupTapListener() {
         eventDelegate = NaverMapViewEventDelegate(
-            sender: naverMapControlSender,
-            initializeConsumeSymbolTapEvents:
-                naverMapViewOptions.consumeSymbolTapEvents
+            sender: mapController,
+            initializeConsumeSymbolTapEvents: options.consumeSymbolTapEvents
         )
         eventDelegate.registerDelegates(mapView: naverMap.mapView)
     }
 
-    // 6) Dart → Native 호출 처리
+    // Dart에서 invokeMethod("setLayerGroupEnabled", ...) 호출 시 이쪽으로 들어옵니다
     private func handleMethodCall(_ call: FlutterMethodCall,
                                   result: @escaping FlutterResult) {
         switch call.method {
         case "setLayerGroupEnabled":
-            guard let args = call.arguments as? [String: Any],
-                  let group = args["layerGroup"] as? String,
-                  let enable = args["enable"] as? Bool else {
+            guard
+                let args = call.arguments as? [String: Any],
+                let groupKey = args["layerGroup"] as? String,
+                let enable = args["enable"] as? Bool
+            else {
                 return result(FlutterError(
                     code: "INVALID_ARGS",
                     message: "Expected { layerGroup: String, enable: Bool }",
@@ -97,8 +93,8 @@ internal class NaverMapView: NSObject, FlutterPlatformView {
                 ))
             }
 
-            // iOS SDK에서는 setLayerGroup(_:isEnabled:) API 사용
-            switch group {
+            // iOS SDK의 setLayerGroup(_:isEnabled:) 호출로 변환
+            switch groupKey {
             case "poi":
                 naverMap.mapView.setLayerGroup(.poi, isEnabled: enable)
             case "transit":
