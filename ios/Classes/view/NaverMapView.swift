@@ -10,7 +10,6 @@ import NMapsMap
 internal class NaverMapView: NSObject, FlutterPlatformView {
     // 1) Dart ↔ Native 통신 채널을 저장할 프로퍼티 추가
     private let channel: FlutterMethodChannel
-
     // 기존 프로퍼티들
     private let naverMap: NMFNaverMapView!
     private let naverMapViewOptions: NaverMapViewOptions
@@ -94,7 +93,7 @@ internal class NaverMapView: NSObject, FlutterPlatformView {
                 ))
             }
 
-            // 7) 네이티브 API 호출: NMFNaverMapView 안의 mapView에 레이어 토글
+            // 7) 네이티브 API 호출: mapView에 레이어 토글
             switch group {
             case "poi":
                 naverMap.mapView.setLayerGroupEnabled(.poi, enable)
